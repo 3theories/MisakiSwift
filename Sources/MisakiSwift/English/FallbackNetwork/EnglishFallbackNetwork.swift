@@ -72,21 +72,29 @@ final class EnglishFallbackNetwork {
     return (outputText, 1)
   }
   
+  /// Resolve a bundled resource by name. Aria's vendored
+  /// Package.swift flattens resources to the bundle root; try the
+  /// upstream "Resources" subdirectory first for compatibility,
+  /// fall back to the root. Local-only patch.
+  private static func resourceURL(_ filename: String, ext: String) -> URL? {
+    Bundle.module.url(forResource: filename, withExtension: ext, subdirectory: "Resources")
+      ?? Bundle.module.url(forResource: filename, withExtension: ext)
+  }
+
   private static func loadConfig(british: Bool) -> BARTConfig? {
     let fileName = "\(british ? "gb" : "us")_bart_config"
-    
-    
-    guard let url = Bundle.module.url(forResource: fileName, withExtension: "json", subdirectory: "Resources"),
+
+    guard let url = Self.resourceURL(fileName, ext: "json"),
           let data = try? Data(contentsOf: url),
           let config = try? JSONDecoder().decode(BARTConfig.self, from: data) else {
         return nil
     }
     return config
   }
-  
+
   private static func loadWeights(british: Bool) -> [String: MLXArray]? {
     let fileName = "\(british ? "gb" : "us")_bart"
-    guard let url = Bundle.module.url(forResource: fileName, withExtension: "safetensors", subdirectory: "Resources"),
+    guard let url = Self.resourceURL(fileName, ext: "safetensors"),
           let weights = try? MLX.loadArrays(url: url) else {
       return nil
     }
